@@ -1,0 +1,33 @@
+# Assisted by Antigravity (SI) — reviewed by Jeshua
+services:
+  db-local:
+    image: postgres:17
+    container_name: spectrahive-db-local
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spectrahive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spectrahive_local_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-spectrahive}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./supabase-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spectrahive} -d ${POSTGRES_DB:-spectrahive}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spectrahive-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/data
+    depends_on:
+      db-local:
+        condition: service_healthy

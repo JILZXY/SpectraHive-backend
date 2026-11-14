@@ -1,0 +1,16 @@
+# Assisted by Antigravity (SI) — reviewed by Jeshua
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+data/cutouts/*.fits
+data/cache/*
+!data/cache/.gitkeep
+!data/cutouts/.gitkeep

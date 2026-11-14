@@ -1,0 +1,11 @@
+# Assisted by Antigravity (SI) — reviewed by Jeshua
+.git
+.env
+.env.*
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+context
+data/cache/*
