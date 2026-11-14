@@ -1,0 +1,1117 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SpectraHive API",
+    "description": "Backend FastAPI para SpectraHive (SPHEREx Tracker): servicio de cutouts infrarrojos J2000, resta absoluta |B - A| con deteccion de candidatos, reportes y validacion cruzada en Supabase, y ADN Cosmico precalculado.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/cutout": {
+      "get": {
+        "tags": [
+          "cutouts"
+        ],
+        "summary": "Obtener cutout astronomico por coordenadas J2000",
+        "description": "Sirve un cutout infrarrojo precalculado de IRSA (o fallback sintetico) en J2000.\n\nCumple RF-01 (validacion de RA/Dec), RF-02 (FOV 1 o 2), RF-06 (2 epocas),\nRF-07 (normalizacion unica percentiles 1-99) y RF-16 (fallback sintetico declarado\nen el campo `fuente`: `irsa` | `sintetico`).",
+        "operationId": "get_cutout_cutout_get",
+        "parameters": [
+          {
+            "name": "ra",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Ascension Recta J2000 (decimal 0-360 o sexagesimal, ej. 269.452075 o 17h57m)",
+              "examples": [
+                "269.452075"
+              ],
+              "title": "Ra"
+            },
+            "description": "Ascension Recta J2000 (decimal 0-360 o sexagesimal, ej. 269.452075 o 17h57m)"
+          },
+          {
+            "name": "dec",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Declinacion J2000 (decimal -90..+90 o sexagesimal, ej. 4.693365 o +4d41m)",
+              "examples": [
+                "4.693365"
+              ],
+              "title": "Dec"
+            },
+            "description": "Declinacion J2000 (decimal -90..+90 o sexagesimal, ej. 4.693365 o +4d41m)"
+          },
+          {
+            "name": "fov",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Campo de vision permitido en el MVP: solo 1 o 2 grados (RF-02)",
+              "examples": [
+                2
+              ],
+              "default": 2,
+              "title": "Fov"
+            },
+            "description": "Campo de vision permitido en el MVP: solo 1 o 2 grados (RF-02)"
+          },
+          {
+            "name": "epoca",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Epoca astronomica solicitada: A/DR1 o B/QR3 (RF-06)",
+              "examples": [
+                "A"
+              ],
+              "default": "A",
+              "title": "Epoca"
+            },
+            "description": "Epoca astronomica solicitada: A/DR1 o B/QR3 (RF-06)"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Formato de salida: json (metadatos + imagen base64) o png (binario image/png)",
+              "examples": [
+                "json"
+              ],
+              "default": "json",
+              "title": "Format"
+            },
+            "description": "Formato de salida: json (metadatos + imagen base64) o png (binario image/png)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CutoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Coordenadas fuera de rango (RA 0-360°, Dec -90°..+90°) o FOV distinto de 1 o 2",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/diff": {
+      "post": {
+        "tags": [
+          "diffs"
+        ],
+        "summary": "Calcular resta absoluta |B - A| y candidatos sobre el umbral",
+        "description": "Alinea dos epocas por desplazamiento entero y calcula |Matriz_B - Matriz_A|.\n\nAplica normalizacion por percentiles 1-99 (RF-07), resta absoluta (RF-08),\numbral estadistico con explicacion del motivo de cada candidato (RF-09) y\nalineacion sin reproyeccion general (RN-09).",
+        "operationId": "compute_diff_diff_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos (coordenadas o FOV fuera de rango)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cuadrante no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Registrar un reporte de anomalia o cuadrante limpio",
+        "description": "Crea un reporte en una posicion J2000 de un cuadrante (RF-10, RF-11).\n\nValida RN-02 y RN-03 antes de insertar en `reportes`: `tipo` debe coincidir\ncon el `tipo_prueba` del cuadrante (`movimiento` o `brillo`), salvo `limpio`.",
+        "operationId": "create_report_report_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Coordenadas invalidas o tipo incompatible con tipo_prueba del cuadrante (RN-02/RN-03)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cuadrante no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Base de datos no configurada (falta DATABASE_URL)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/report/{reporte_id}/validate": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Registrar voto de validacion cruzada sobre un reporte",
+        "description": "Registra una validacion sobre un reporte y verifica confirmacion (RF-12, RF-13).\n\nCuando `vw_reportes_confirmados` registra >= 3 votos con `coincide=true` para el\nmismo `reporte_id`, el cuadrante pasa atomicamente a estado `confirmado` (RN-06).",
+        "operationId": "validate_report_by_id_report__reporte_id__validate_post",
+        "parameters": [
+          {
+            "name": "reporte_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reporte Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateReportBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Operacion invalida (ej. intentar validar un reporte limpio, RF-11)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reporte no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Base de datos no configurada (falta DATABASE_URL)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quadrants": {
+      "get": {
+        "tags": [
+          "quadrants",
+          "dna"
+        ],
+        "summary": "Listar cola fija de cuadrantes",
+        "description": "Devuelve la cola fija de hasta 10 cuadrantes (5 de prueba + 5 de practica, RF-05).",
+        "operationId": "list_quadrants_quadrants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuadrantsListResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Base de datos no configurada (falta DATABASE_URL)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dna/{objeto}": {
+      "get": {
+        "tags": [
+          "quadrants",
+          "dna"
+        ],
+        "summary": "Obtener ADN Cosmico precalculado de un objeto",
+        "description": "Devuelve la firma espectral precalculada para comparar visualmente (RF-14, RF-15).",
+        "operationId": "get_dna_by_path_dna__objeto__get",
+        "parameters": [
+          {
+            "name": "objeto",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Objeto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CosmicDnaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe ADN Cosmico precalculado para el objeto solicitado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Verificar estado del servicio",
+        "description": "Verifica disponibilidad de la API y si DATABASE_URL esta configurada (warm-up Render).",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CandidateResponse": {
+        "properties": {
+          "ra": {
+            "type": "number",
+            "title": "Ra"
+          },
+          "dec": {
+            "type": "number",
+            "title": "Dec"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ra",
+          "dec",
+          "valor",
+          "motivo",
+          "tipo"
+        ],
+        "title": "CandidateResponse",
+        "description": "Candidato detectado por encima del umbral con explicacion de clasificacion."
+      },
+      "CosmicDnaResponse": {
+        "properties": {
+          "objeto": {
+            "type": "string",
+            "title": "Objeto"
+          },
+          "bandas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bandas"
+          },
+          "valores": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Valores"
+          },
+          "tipo_prueba": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Prueba"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "objeto",
+          "bandas",
+          "valores"
+        ],
+        "title": "CosmicDnaResponse",
+        "description": "Firma espectral visual precalculada del ADN Cosmico (RF-14, RF-15).",
+        "example": {
+          "bandas": [
+            "0.75 um",
+            "1.10 um",
+            "1.65 um",
+            "2.20 um",
+            "3.40 um",
+            "4.10 um",
+            "4.80 um"
+          ],
+          "descripcion": "Firma visual infrarroja de referencia (enana roja M4V de alto movimiento propio). Uso comparativo visual, no identificacion quimica directa.",
+          "objeto": "Barnard's Star",
+          "tipo_prueba": "movimiento",
+          "valores": [
+            0.54,
+            0.88,
+            1.0,
+            0.84,
+            0.46,
+            0.34,
+            0.28
+          ]
+        }
+      },
+      "CreateReportRequest": {
+        "properties": {
+          "cuadrante_id": {
+            "type": "string",
+            "title": "Cuadrante Id"
+          },
+          "ra": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Ra"
+          },
+          "dec": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Dec"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuadrante_id",
+          "ra",
+          "dec",
+          "tipo"
+        ],
+        "title": "CreateReportRequest",
+        "description": "Peticion para reportar una anomalia o marcar un cuadrante como limpio.",
+        "example": {
+          "cuadrante_id": "Barnard's Star",
+          "dec": 4.693365,
+          "ra": 269.452075,
+          "tipo": "movimiento"
+        }
+      },
+      "CreateReportResponse": {
+        "properties": {
+          "reporte_id": {
+            "type": "string",
+            "title": "Reporte Id"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "cuadrante_id": {
+            "type": "string",
+            "title": "Cuadrante Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reporte_id",
+          "estado",
+          "cuadrante_id",
+          "tipo"
+        ],
+        "title": "CreateReportResponse",
+        "description": "Respuesta de POST /report con identificador y estado del cuadrante.",
+        "example": {
+          "cuadrante_id": "00000000-0000-0000-0000-000000000001",
+          "estado": "pendiente",
+          "reporte_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "tipo": "movimiento"
+        }
+      },
+      "CutoutResponse": {
+        "properties": {
+          "ra": {
+            "type": "number",
+            "title": "Ra"
+          },
+          "dec": {
+            "type": "number",
+            "title": "Dec"
+          },
+          "fov": {
+            "type": "integer",
+            "title": "Fov"
+          },
+          "epoca": {
+            "type": "string",
+            "title": "Epoca"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "objeto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objeto"
+          },
+          "imagen": {
+            "type": "string",
+            "title": "Imagen"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ra",
+          "dec",
+          "fov",
+          "epoca",
+          "fuente",
+          "imagen"
+        ],
+        "title": "CutoutResponse",
+        "description": "Respuesta JSON de GET /cutout con metadatos y PNG codificado en base64.",
+        "example": {
+          "dec": 4.693365,
+          "epoca": "DR1",
+          "fov": 2,
+          "fuente": "irsa",
+          "imagen": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+          "objeto": "Barnard's Star",
+          "ra": 269.452075
+        }
+      },
+      "DiffRequest": {
+        "properties": {
+          "cuadrante_id": {
+            "type": "string",
+            "title": "Cuadrante Id"
+          },
+          "epoca_a": {
+            "type": "string",
+            "title": "Epoca A",
+            "default": "A"
+          },
+          "epoca_b": {
+            "type": "string",
+            "title": "Epoca B",
+            "default": "B"
+          },
+          "ra": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ra"
+          },
+          "dec": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dec"
+          },
+          "fov": {
+            "type": "integer",
+            "title": "Fov",
+            "default": 2
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuadrante_id"
+        ],
+        "title": "DiffRequest",
+        "description": "Peticion para calcular la resta absoluta |Epoca B - Epoca A|.",
+        "example": {
+          "cuadrante_id": "Barnard's Star",
+          "dec": 4.693365,
+          "epoca_a": "DR1",
+          "epoca_b": "QR3",
+          "fov": 2,
+          "ra": 269.452075
+        }
+      },
+      "DiffResponse": {
+        "properties": {
+          "umbral": {
+            "type": "number",
+            "title": "Umbral"
+          },
+          "candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateResponse"
+            },
+            "type": "array",
+            "title": "Candidatos"
+          },
+          "imagen": {
+            "type": "string",
+            "title": "Imagen"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "cuadrante_id": {
+            "type": "string",
+            "title": "Cuadrante Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "umbral",
+          "candidatos",
+          "imagen",
+          "fuente",
+          "cuadrante_id"
+        ],
+        "title": "DiffResponse",
+        "description": "Salida de POST /diff con umbral estadistico, candidatos e imagen |B - A|.",
+        "example": {
+          "candidatos": [
+            {
+              "dec": 4.6941,
+              "motivo": "Desplazamiento dipolar de 8.6 px entre Epoca A y B con variacion delta=142.30 sobre el umbral (movimiento propio rapido)",
+              "ra": 269.4512,
+              "tipo": "movimiento",
+              "valor": 1.0
+            }
+          ],
+          "cuadrante_id": "Barnard's Star",
+          "fuente": "irsa",
+          "imagen": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+          "umbral": 0.4125
+        }
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "description": "Modelo estandar de respuesta de error HTTP JSON.",
+        "example": {
+          "detail": "RA fuera de rango valido (0 a 360 grados): 400.0."
+        }
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service"
+          },
+          "database_configured": {
+            "type": "boolean",
+            "title": "Database Configured"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "database_configured"
+        ],
+        "title": "HealthResponse",
+        "description": "Estado de salud del servicio backend.",
+        "example": {
+          "database_configured": true,
+          "service": "spectrahive-backend",
+          "status": "ok"
+        }
+      },
+      "QuadrantItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "ra": {
+            "type": "number",
+            "title": "Ra"
+          },
+          "dec": {
+            "type": "number",
+            "title": "Dec"
+          },
+          "fov": {
+            "type": "integer",
+            "title": "Fov"
+          },
+          "epoca_a": {
+            "type": "string",
+            "title": "Epoca A"
+          },
+          "epoca_b": {
+            "type": "string",
+            "title": "Epoca B"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "es_objeto_prueba": {
+            "type": "boolean",
+            "title": "Es Objeto Prueba"
+          },
+          "tipo_prueba": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Prueba"
+          },
+          "url_dinamica": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url Dinamica"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "ra",
+          "dec",
+          "fov",
+          "epoca_a",
+          "epoca_b",
+          "estado",
+          "es_objeto_prueba"
+        ],
+        "title": "QuadrantItemResponse",
+        "description": "Cuadrante de la cola fija ordenado para revision."
+      },
+      "QuadrantsListResponse": {
+        "properties": {
+          "cuadrantes": {
+            "items": {
+              "$ref": "#/components/schemas/QuadrantItemResponse"
+            },
+            "type": "array",
+            "title": "Cuadrantes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuadrantes"
+        ],
+        "title": "QuadrantsListResponse",
+        "description": "Lista ordenada de cuadrantes de la cola fija (RF-05).",
+        "example": {
+          "cuadrantes": [
+            {
+              "dec": 4.693365,
+              "epoca_a": "DR1",
+              "epoca_b": "QR3",
+              "es_objeto_prueba": true,
+              "estado": "pendiente",
+              "fov": 2,
+              "id": "00000000-0000-0000-0000-000000000001",
+              "nombre": "Barnard's Star",
+              "ra": 269.452075,
+              "tipo_prueba": "movimiento",
+              "url_dinamica": "/?ra=17h57m&dec=+4d41m&fov=2"
+            }
+          ]
+        }
+      },
+      "ValidateReportBody": {
+        "properties": {
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide"
+          },
+          "es_simulado": {
+            "type": "boolean",
+            "title": "Es Simulado",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "coincide"
+        ],
+        "title": "ValidateReportBody",
+        "description": "Voto de validacion cruzada sobre un reporte existente.",
+        "example": {
+          "coincide": true,
+          "es_simulado": true
+        }
+      },
+      "ValidateReportResponse": {
+        "properties": {
+          "validacion_id": {
+            "type": "string",
+            "title": "Validacion Id"
+          },
+          "reporte_id": {
+            "type": "string",
+            "title": "Reporte Id"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide"
+          },
+          "es_simulado": {
+            "type": "boolean",
+            "title": "Es Simulado"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "votos_coinciden": {
+            "type": "integer",
+            "title": "Votos Coinciden"
+          },
+          "confirmado": {
+            "type": "boolean",
+            "title": "Confirmado"
+          },
+          "estado_cuadrante": {
+            "type": "string",
+            "title": "Estado Cuadrante"
+          }
+        },
+        "type": "object",
+        "required": [
+          "validacion_id",
+          "reporte_id",
+          "coincide",
+          "es_simulado",
+          "etiqueta",
+          "votos_coinciden",
+          "confirmado",
+          "estado_cuadrante"
+        ],
+        "title": "ValidateReportResponse",
+        "description": "Resultado de validacion cruzada y estado actualizado del cuadrante.",
+        "example": {
+          "coincide": true,
+          "confirmado": true,
+          "es_simulado": true,
+          "estado_cuadrante": "confirmado",
+          "etiqueta": "simulado",
+          "reporte_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "validacion_id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+          "votos_coinciden": 3
+        }
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

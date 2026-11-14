@@ -1,0 +1,3 @@
+# Assisted by Antigravity (SI) — reviewed by Jeshua
+-r requirements.txt
+pytest>=8.2.0

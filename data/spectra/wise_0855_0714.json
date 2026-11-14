@@ -1,0 +1,24 @@
+{
+  "objeto": "WISE 0855-0714",
+  "slug": "wise_0855_0714",
+  "tipo_prueba": "movimiento",
+  "bandas": [
+    "0.75 um",
+    "1.10 um",
+    "1.65 um",
+    "2.20 um",
+    "3.40 um",
+    "4.10 um",
+    "4.80 um"
+  ],
+  "valores": [
+    0.04,
+    0.08,
+    0.14,
+    0.19,
+    0.48,
+    0.86,
+    1.0
+  ],
+  "descripcion": "Firma visual infrarroja de referencia (enana marron fria tipo Y, flujo dominante en infrarrojo medio). Uso comparativo visual, no identificacion quimica directa."
+}

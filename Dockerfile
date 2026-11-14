@@ -13,8 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 COPY data ./data
-COPY tests ./tests
-COPY supabase-schema.sql ./supabase-schema.sql
 
 RUN python scripts/build_spectra.py && \
     python scripts/fetch_cutouts.py --offline-fallback
