@@ -1,0 +1,34 @@
+{
+  "objetos": [
+    {
+      "objeto": "Barnard's Star",
+      "slug": "barnards_star",
+      "tipo_prueba": "movimiento",
+      "archivo": "barnards_star.json"
+    },
+    {
+      "objeto": "WISE 0855-0714",
+      "slug": "wise_0855_0714",
+      "tipo_prueba": "movimiento",
+      "archivo": "wise_0855_0714.json"
+    },
+    {
+      "objeto": "Epsilon Indi B",
+      "slug": "epsilon_indi_b",
+      "tipo_prueba": "movimiento",
+      "archivo": "epsilon_indi_b.json"
+    },
+    {
+      "objeto": "RW Aurigae",
+      "slug": "rw_aurigae",
+      "tipo_prueba": "brillo",
+      "archivo": "rw_aurigae.json"
+    },
+    {
+      "objeto": "R Draconis",
+      "slug": "r_draconis",
+      "tipo_prueba": "brillo",
+      "archivo": "r_draconis.json"
+    }
+  ]
+}

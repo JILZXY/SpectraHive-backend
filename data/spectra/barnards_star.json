@@ -1,0 +1,24 @@
+{
+  "objeto": "Barnard's Star",
+  "slug": "barnards_star",
+  "tipo_prueba": "movimiento",
+  "bandas": [
+    "0.75 um",
+    "1.10 um",
+    "1.65 um",
+    "2.20 um",
+    "3.40 um",
+    "4.10 um",
+    "4.80 um"
+  ],
+  "valores": [
+    0.54,
+    0.88,
+    1.0,
+    0.84,
+    0.46,
+    0.34,
+    0.28
+  ],
+  "descripcion": "Firma visual infrarroja de referencia (enana roja M4V de alto movimiento propio). Uso comparativo visual, no identificacion quimica directa."
+}

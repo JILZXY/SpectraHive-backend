@@ -1,0 +1,24 @@
+{
+  "objeto": "R Draconis",
+  "slug": "r_draconis",
+  "tipo_prueba": "brillo",
+  "bandas": [
+    "0.75 um",
+    "1.10 um",
+    "1.65 um",
+    "2.20 um",
+    "3.40 um",
+    "4.10 um",
+    "4.80 um"
+  ],
+  "valores": [
+    0.42,
+    0.85,
+    1.0,
+    0.92,
+    0.71,
+    0.58,
+    0.49
+  ],
+  "descripcion": "Firma visual infrarroja de referencia (gigante roja variable tipo Mira, variacion de brillo). Uso comparativo visual, no identificacion quimica directa."
+}

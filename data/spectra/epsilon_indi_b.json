@@ -1,0 +1,24 @@
+{
+  "objeto": "Epsilon Indi B",
+  "slug": "epsilon_indi_b",
+  "tipo_prueba": "movimiento",
+  "bandas": [
+    "0.75 um",
+    "1.10 um",
+    "1.65 um",
+    "2.20 um",
+    "3.40 um",
+    "4.10 um",
+    "4.80 um"
+  ],
+  "valores": [
+    0.12,
+    0.42,
+    0.65,
+    0.58,
+    0.62,
+    0.88,
+    1.0
+  ],
+  "descripcion": "Firma visual infrarroja de referencia (sistema binario de enanas marrones T1/T6). Uso comparativo visual, no identificacion quimica directa."
+}
