@@ -27,6 +27,7 @@ from app.domain.errors import (
 from app.infrastructure.fits.alignment import IntegerShiftAlignment
 from app.infrastructure.fits.loader import save_fits_image
 from app.infrastructure.fits.rendering import FitsDiffProcessor
+from app.infrastructure.irsa.client import SiaObservation, select_epoch_pair
 from app.infrastructure.irsa.precomputed import (
     PrecomputedCutoutProvider,
     PrecomputedSpectralProvider,
@@ -257,3 +258,32 @@ def test_database_url_missing_fails_explicitly(monkeypatch: pytest.MonkeyPatch) 
 
     with pytest.raises(RuntimeError, match="Falta DATABASE_URL"):
         create_db_pool()
+
+
+def test_sia_select_epoch_pair_prefers_6_months_and_same_detector_including_dr1_only() -> None:
+    obs = [
+        SiaObservation(60800.0, "2025-05-05", "D3", "spherex_dr1", "https://example.org/1.fits", 2040, 2040),
+        SiaObservation(60805.0, "2025-05-10", "D6", "spherex_dr1", "https://example.org/2.fits", 2040, 2040),
+        SiaObservation(60980.0, "2025-11-01", "D3", "spherex_dr1", "https://example.org/3.fits", 2040, 2040),
+        SiaObservation(61170.0, "2026-05-10", "D6", "spherex_dr1", "https://example.org/4.fits", 2040, 2040),
+    ]
+    a, b = select_epoch_pair(obs)
+    assert a.detector == b.detector
+    assert 120.0 <= (b.t_min - a.t_min) <= 245.0
+    assert a.fecha == "2025-05-05"
+    assert b.fecha == "2025-11-01"
+
+
+def test_precomputed_provider_reads_dated_irsa_mef_cutout(tmp_path: Path) -> None:
+    mef_a = tmp_path / "wise_0855_0714_2025-05-05.fits"
+    mef_b = tmp_path / "wise_0855_0714_2025-11-01.fits"
+    arr = np.full((300, 300), 15.0, dtype=np.float32)
+    arr[145:155, 145:155] = 250.0
+    save_fits_image(mef_a, arr, header_meta={"SOURCE": "IRSA", "SYNTHETC": False})
+    save_fits_image(mef_b, arr, header_meta={"SOURCE": "IRSA", "SYNTHETC": False})
+
+    provider = PrecomputedCutoutProvider(cutouts_dir=tmp_path)
+    cut_a = GetCutout(provider).execute(ra=133.795133, dec=-7.245146, fov=2, epoca="A")
+    cut_b = GetCutout(provider).execute(ra=133.795133, dec=-7.245146, fov=2, epoca="B")
+    assert cut_a.fuente == "irsa"
+    assert cut_b.fuente == "irsa"
