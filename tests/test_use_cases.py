@@ -199,12 +199,20 @@ def test_compute_diff_barnard_and_rw_aurigae() -> None:
     barnard_diff = diff_uc.execute(cuadrante_id="Barnard's Star")
     assert barnard_diff.umbral > 0.0
     assert barnard_diff.imagen_base64.startswith("data:image/png;base64,")
-    assert len(barnard_diff.candidatos) >= 2
-    assert any(c.tipo == "movimiento" for c in barnard_diff.candidatos)
+    assert len(barnard_diff.candidatos) == 2
+    assert all(c.tipo == "movimiento" for c in barnard_diff.candidatos)
+
+    wise_diff = diff_uc.execute(cuadrante_id="WISE 0855-0714")
+    assert len(wise_diff.candidatos) == 2
+    assert all(c.tipo == "movimiento" for c in wise_diff.candidatos)
 
     rw_diff = diff_uc.execute(cuadrante_id="RW Aurigae")
-    assert len(rw_diff.candidatos) >= 1
-    assert any(c.tipo == "brillo" for c in rw_diff.candidatos)
+    assert len(rw_diff.candidatos) == 1
+    assert rw_diff.candidatos[0].tipo == "brillo"
+
+    r_draconis_diff = diff_uc.execute(cuadrante_id="R Draconis")
+    assert len(r_draconis_diff.candidatos) == 1
+    assert r_draconis_diff.candidatos[0].tipo == "brillo"
 
 
 def test_get_cutout_reads_irsa_fits_and_falls_back(tmp_path: Path) -> None:

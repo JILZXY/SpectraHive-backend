@@ -79,78 +79,122 @@ def compute_diff_and_candidates(
     img_a: Image,
     img_b: Image,
 ) -> tuple[np.ndarray, float, list[Candidate]]:
-    """Calcula |B - A|, aplica umbral estadistico y clasifica candidatos (RF-08, RF-09)."""
+    """Calcula |B - A|, aplica umbral robusto sobre la resta cruda y clasifica candidatos (RF-08, RF-09)."""
     diff = np.abs(img_b.data - img_a.data).astype(np.float32)
     signed_diff = (img_b.data - img_a.data).astype(np.float32)
-    diff_norm = normalize_percentile_1_99(diff)
 
-    mean_val = float(np.mean(diff_norm))
-    std_val = float(np.std(diff_norm))
-    umbral = round(float(np.clip(mean_val + 3.5 * std_val, 0.35, 0.85)), 4)
+    # Umbral robusto sobre la resta cruda (evita saturar p99 con ruido de fondo)
+    med = float(np.median(diff))
+    mad = float(np.median(np.abs(diff - med)))
+    sigma_mad = 1.4826 * mad
+    std_raw = float(np.std(diff))
+    umbral = round(max(med + 10.0 * sigma_mad, med + 5.0 * std_raw, 5.0), 4)
 
-    binary_mask = diff_norm >= umbral
+    binary_mask = diff >= umbral
     labeled, num_features = ndimage.label(binary_mask)
 
     h, w = diff.shape
-    candidates: list[Candidate] = []
-    window_radius = max(10, min(20, min(h, w) // 6))
+    min_area = 4
+    dipole_radius = max(12.0, min(h, w) / 4.0)
 
+    # Recolectar solo componentes con area >= 4 px (sin ruido puntual)
+    components: list[dict[str, object]] = []
+    valid_mask = np.zeros_like(binary_mask, dtype=bool)
     for label_idx in range(1, num_features + 1):
         comp_mask = labeled == label_idx
         area = int(np.sum(comp_mask))
-        peak_val = float(np.max(diff_norm[comp_mask]))
-        if area < 2 and peak_val < 0.75:
+        if area < min_area:
             continue
+        valid_mask |= comp_mask
 
-        # Centroide ponderado por intensidad normalizada
-        weights = diff_norm * comp_mask
         ys, xs = np.nonzero(comp_mask)
-        total_w = float(np.sum(weights[ys, xs])) or 1.0
-        py = float(np.sum(ys * weights[ys, xs])) / total_w
-        px = float(np.sum(xs * weights[ys, xs])) / total_w
+        weights = diff[ys, xs]
+        integrated_flux = float(np.sum(weights))
+        total_w = integrated_flux or 1.0
+        py = float(np.sum(ys * weights)) / total_w
+        px = float(np.sum(xs * weights)) / total_w
 
-        iy = int(round(py))
-        ix = int(round(px))
-        y0 = max(0, iy - window_radius)
-        y1 = min(h, iy + window_radius + 1)
-        x0 = max(0, ix - window_radius)
-        x1 = min(w, ix + window_radius + 1)
+        comp_signed = signed_diff[comp_mask]
+        pos_in_comp = float(np.max(comp_signed))
+        neg_in_comp = float(-np.min(comp_signed))
+        signed_sum = float(np.sum(comp_signed))
+        peak_raw = float(np.max(diff[comp_mask]))
 
-        win = signed_diff[y0:y1, x0:x1]
-        pos_peak = float(np.max(win))
-        neg_peak = float(-np.min(win))
+        components.append(
+            {
+                "mask": comp_mask,
+                "ys": ys,
+                "xs": xs,
+                "py": py,
+                "px": px,
+                "flux": integrated_flux,
+                "peak": peak_raw,
+                "pos_in_comp": pos_in_comp,
+                "neg_in_comp": neg_in_comp,
+                "sign": 1 if signed_sum >= 0.0 else -1,
+            }
+        )
 
-        # Si coexisten lobulo positivo y negativo cercanos, hay desplazamiento dipolar
-        if max(pos_peak, neg_peak) > 1e-9 and (
-            min(pos_peak, neg_peak) / max(pos_peak, neg_peak)
+    scored_candidates: list[tuple[float, Candidate]] = []
+    for idx, comp in enumerate(components):
+        comp_mask = comp["mask"]
+        ys = comp["ys"]
+        xs = comp["xs"]
+        py = float(comp["py"])
+        px = float(comp["px"])
+        integrated_flux = float(comp["flux"])
+        peak_raw = float(comp["peak"])
+        pos_in_comp = float(comp["pos_in_comp"])
+        neg_in_comp = float(comp["neg_in_comp"])
+        comp_sign = int(comp["sign"])
+
+        # Medir desplazamiento dipolar solo con pixeles dentro de valid_mask
+        if max(pos_in_comp, neg_in_comp) > 1e-9 and (
+            min(pos_in_comp, neg_in_comp) / max(pos_in_comp, neg_in_comp)
         ) >= 0.35:
-            pos_idx = np.unravel_index(int(np.argmax(win)), win.shape)
-            neg_idx = np.unravel_index(int(np.argmin(win)), win.shape)
+            comp_vals = signed_diff[ys, xs]
+            pos_rel = int(np.argmax(comp_vals))
+            neg_rel = int(np.argmin(comp_vals))
             displacement_px = float(
-                math.hypot(pos_idx[0] - neg_idx[0], pos_idx[1] - neg_idx[1])
+                math.hypot(ys[pos_rel] - ys[neg_rel], xs[pos_rel] - xs[neg_rel])
             )
         else:
             displacement_px = 0.0
+            best_partner_dist = dipole_radius + 1.0
+            for other_idx, other in enumerate(components):
+                if other_idx == idx or int(other["sign"]) == comp_sign:
+                    continue
+                other_peak = float(other["peak"])
+                if max(peak_raw, other_peak) <= 1e-9:
+                    continue
+                if min(peak_raw, other_peak) / max(peak_raw, other_peak) < 0.35:
+                    continue
+                dist = float(math.hypot(py - float(other["py"]), px - float(other["px"])))
+                if dist <= dipole_radius and dist < best_partner_dist:
+                    best_partner_dist = dist
+                    displacement_px = dist
 
-        brightness_delta = float(np.max(diff[comp_mask]))
-        tipo, motivo = classify_candidate(displacement_px, brightness_delta)
+        tipo, motivo = classify_candidate(displacement_px, peak_raw)
         cand_ra, cand_dec = _pixel_to_sky(
             px, py, w, h, img_a.ra, img_a.dec, img_a.fov
         )
-        candidates.append(
-            Candidate(
-                ra=cand_ra,
-                dec=cand_dec,
-                valor=round(peak_val, 4),
-                motivo=motivo,
-                tipo=tipo,
-                x=ix,
-                y=iy,
+        scored_candidates.append(
+            (
+                integrated_flux,
+                Candidate(
+                    ra=cand_ra,
+                    dec=cand_dec,
+                    valor=round(peak_raw, 4),
+                    motivo=motivo,
+                    tipo=tipo,
+                    x=int(round(px)),
+                    y=int(round(py)),
+                ),
             )
         )
 
-    candidates.sort(key=lambda c: c.valor, reverse=True)
-    return diff, umbral, candidates[:10]
+    scored_candidates.sort(key=lambda item: item[0], reverse=True)
+    return diff, umbral, [cand for _, cand in scored_candidates[:10]]
 
 
 class FitsDiffProcessor:
