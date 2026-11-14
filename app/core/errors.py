@@ -5,9 +5,22 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict
 
 from app.config import DatabaseConfigError
 from app.domain.errors import ResourceNotFoundError, ValidationError
+
+
+class ErrorResponse(BaseModel):
+    """Modelo estandar de respuesta de error HTTP JSON."""
+
+    detail: str
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"detail": "RA fuera de rango valido (0 a 360 grados): 400.0."}
+        }
+    )
 
 
 def register_exception_handlers(app: FastAPI) -> None:

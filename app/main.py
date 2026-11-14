@@ -7,11 +7,30 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict
 
 from app.api.v1 import cutouts, diffs, quadrants, reports
 from app.config import Settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
+
+
+class HealthResponse(BaseModel):
+    """Estado de salud del servicio backend."""
+
+    status: str
+    service: str
+    database_configured: bool
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "status": "ok",
+                "service": "spectrahive-backend",
+                "database_configured": True,
+            }
+        }
+    )
 
 
 def create_app() -> FastAPI:
@@ -20,7 +39,11 @@ def create_app() -> FastAPI:
 
     application = FastAPI(
         title="SpectraHive API",
-        description="Backend FastAPI para SpectraHive (SPHEREx Tracker)",
+        description=(
+            "Backend FastAPI para SpectraHive (SPHEREx Tracker): servicio de cutouts "
+            "infrarrojos J2000, resta absoluta |B - A| con deteccion de candidatos, "
+            "reportes y validacion cruzada en Supabase, y ADN Cosmico precalculado."
+        ),
         version="0.1.0",
     )
 
@@ -34,20 +57,35 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(application)
 
-    # Contratos raiz (§6 de 00-contexto-general.md) y prefijo /api/v1
+    # Contratos raiz (§6 de 00-contexto-general.md) visibles en OpenAPI y alias /api/v1
     for prefix in ("", "/api/v1"):
-        application.include_router(cutouts.router, prefix=prefix)
-        application.include_router(diffs.router, prefix=prefix)
-        application.include_router(reports.router, prefix=prefix)
-        application.include_router(quadrants.router, prefix=prefix)
+        include_schema = prefix == ""
+        application.include_router(
+            cutouts.router, prefix=prefix, include_in_schema=include_schema
+        )
+        application.include_router(
+            diffs.router, prefix=prefix, include_in_schema=include_schema
+        )
+        application.include_router(
+            reports.router, prefix=prefix, include_in_schema=include_schema
+        )
+        application.include_router(
+            quadrants.router, prefix=prefix, include_in_schema=include_schema
+        )
 
-    @application.get("/health", tags=["health"])
-    def health() -> dict[str, object]:
-        return {
-            "status": "ok",
-            "service": "spectrahive-backend",
-            "database_configured": bool(os.environ.get("DATABASE_URL", "").strip()),
-        }
+    @application.get(
+        "/health",
+        response_model=HealthResponse,
+        summary="Verificar estado del servicio",
+        tags=["health"],
+    )
+    def health() -> HealthResponse:
+        """Verifica disponibilidad de la API y si DATABASE_URL esta configurada (warm-up Render)."""
+        return HealthResponse(
+            status="ok",
+            service="spectrahive-backend",
+            database_configured=bool(os.environ.get("DATABASE_URL", "").strip()),
+        )
 
     return application
 

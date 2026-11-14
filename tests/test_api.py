@@ -136,3 +136,28 @@ def test_api_endpoints_end_to_end(tmp_path: Path) -> None:
                 )
     finally:
         app.dependency_overrides.clear()
+
+
+def test_openapi_and_swagger_ui_routes() -> None:
+    with TestClient(app) as client:
+        openapi_resp = client.get("/openapi.json")
+        assert openapi_resp.status_code == 200
+        schema = openapi_resp.json()
+        for expected_path in ("/cutout", "/diff", "/report", "/health"):
+            assert expected_path in schema["paths"]
+
+        # Ejemplos reales de Barnard's Star presentes en el esquema
+        schemas = schema["components"]["schemas"]
+        assert schemas["CutoutResponse"]["example"]["ra"] == 269.452075
+        assert schemas["CutoutResponse"]["example"]["dec"] == 4.693365
+        assert schemas["CutoutResponse"]["example"]["fov"] == 2
+        assert schemas["DiffRequest"]["example"]["ra"] == 269.452075
+        assert schemas["CreateReportRequest"]["example"]["ra"] == 269.452075
+
+        docs_resp = client.get("/docs")
+        assert docs_resp.status_code == 200
+        assert "SwaggerUIBundle" in docs_resp.text
+
+        redoc_resp = client.get("/redoc")
+        assert redoc_resp.status_code == 200
+        assert "redoc" in redoc_resp.text.lower()
