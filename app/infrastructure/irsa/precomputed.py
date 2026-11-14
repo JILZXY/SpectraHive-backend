@@ -7,7 +7,6 @@ import json
 import logging
 from pathlib import Path
 
-import numpy as np
 from astropy.io import fits
 
 from app.domain.entities import (
@@ -18,7 +17,7 @@ from app.domain.entities import (
 from app.domain.errors import ResourceNotFoundError
 from app.domain.ports import CutoutProvider
 from app.domain.value_objects import Cutout, Epoch, Fov, Image, RaDec
-from app.infrastructure.fits.loader import load_fits_image
+from app.infrastructure.fits.loader import load_fits_cutout
 from app.infrastructure.fits.rendering import render_false_color_png
 from app.infrastructure.synthetic.fallback import SyntheticCutoutProvider
 
@@ -40,16 +39,6 @@ def _read_fits_source_tag(path: Path) -> str:
     return "irsa"
 
 
-def _crop_to_fov(arr: np.ndarray, fov: int) -> np.ndarray:
-    """Si solo existe el FITS de FOV=2 y se pide FOV=1, recorta el cuadrante central."""
-    if fov == 1 and arr.shape[0] >= 32 and arr.shape[1] >= 32:
-        h, w = arr.shape
-        y0, y1 = h // 4, (3 * h) // 4
-        x0, x1 = w // 4, (3 * w) // 4
-        return arr[y0:y1, x0:x1].copy()
-    return arr
-
-
 class PrecomputedCutoutProvider:
     """Lee FITS precalculados de data/cutouts/ con Astropy o delega a fallback sintetico (RF-16)."""
 
@@ -62,15 +51,25 @@ class PrecomputedCutoutProvider:
         self._fallback = fallback or SyntheticCutoutProvider()
 
     def _resolve_fits_path(self, slug: str, epoch: Epoch, fov: int) -> Path | None:
-        candidates = [
+        explicit_candidates = [
             self._cutouts_dir / f"{slug}_{epoch.canonical}_fov{fov}.fits",
             self._cutouts_dir / f"{slug}_{epoch.canonical}.fits",
             self._cutouts_dir / f"{slug}_{epoch.alias}.fits",
+            self._cutouts_dir / f"{slug}_{epoch.name}.fits",
         ]
-        for path in candidates:
+        for path in explicit_candidates:
             if path.is_file():
                 return path
-        return None
+
+        # Archivos reales descargados con fecha: {slug}_{YYYY-MM-DD}.fits
+        dated = sorted(self._cutouts_dir.glob(f"{slug}_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*.fits"))
+        if not dated:
+            return None
+        if epoch.alias == "A" or epoch.canonical == "DR1":
+            return dated[0]
+        if epoch.alias == "B" or epoch.canonical == "QR3":
+            return dated[1] if len(dated) >= 2 else dated[-1]
+        return dated[0]
 
     def get_cutout(self, ra_dec: RaDec, fov: Fov, epoch: Epoch) -> Cutout:
         matched = match_test_object(ra_dec.ra, ra_dec.dec, tolerance_deg=0.5)
@@ -78,9 +77,12 @@ class PrecomputedCutoutProvider:
             fits_path = self._resolve_fits_path(matched.slug, epoch, fov.value)
             if fits_path is not None:
                 try:
-                    raw_data = load_fits_image(fits_path)
-                    if f"_fov{fov.value}.fits" not in fits_path.name:
-                        raw_data = _crop_to_fov(raw_data, fov.value)
+                    raw_data = load_fits_cutout(
+                        fits_path,
+                        ra_deg=ra_dec.ra,
+                        dec_deg=ra_dec.dec,
+                        fov_deg=fov.value,
+                    )
                     fuente = _read_fits_source_tag(fits_path)
                     png_bytes = render_false_color_png(raw_data, is_diff=False)
                     img = Image(
