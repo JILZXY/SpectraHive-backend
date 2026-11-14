@@ -1,0 +1,1060 @@
+{
+  "schema_version": "1.0",
+  "title": "Grafo de conocimiento inferido de SpectraHive",
+  "language": "es",
+  "generated_at": "2026-11-14",
+  "description": "Entidades y relaciones extraídas e inferidas a partir de los documentos disponibles en la carpeta context. Las relaciones incluyen referencias de evidencia y distinguen hechos explícitos de inferencias.",
+  "sources": [
+    {
+      "id": "contexto-general",
+      "file": "00-contexto-general.md",
+      "role": "Fuente única de verdad para requisitos, reglas de negocio, modelo de datos, objetos de prueba y contratos."
+    },
+    {
+      "id": "rol-db-validacion-adn",
+      "file": "03-db-validacion-adn.md",
+      "role": "Responsabilidades, entregables e integración del rol de base de datos, validación y ADN Cósmico."
+    },
+    {
+      "id": "rol-entrega-demo",
+      "file": "04-entrega-demo-ingles.md",
+      "role": "Requisitos de entrega, demo, fuentes de datos y declaraciones del proyecto."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "spectrahive",
+      "type": "project",
+      "label": "SpectraHive (SPHEREx Tracker)",
+      "properties": {
+        "description": "Plataforma web de ciencia ciudadana para descubrir cambios o anomalías en objetos infrarrojos mediante datos de SPHEREx.",
+        "challenge": "Planet X and SPHEREx"
+      }
+    },
+    {
+      "id": "citizen-scientist",
+      "type": "user",
+      "label": "Usuario de ciencia ciudadana",
+      "properties": {
+        "purpose": "Revisa cuadrantes, identifica posibles cambios y contribuye con reportes."
+      }
+    },
+    {
+      "id": "core-workflow",
+      "type": "workflow",
+      "label": "Flujo central de análisis",
+      "properties": {
+        "steps": [
+          "buscar por RA/Dec",
+          "alternar entre Época A y B",
+          "inspeccionar la resta absoluta |B-A|",
+          "reportar anomalía o marcar limpio",
+          "validar cruzadamente el reporte"
+        ]
+      }
+    },
+    {
+      "id": "quadrant",
+      "type": "data_entity",
+      "label": "Cuadrante",
+      "properties": {
+        "table": "cuadrantes",
+        "coordinates": "RA/Dec J2000",
+        "allowed_fov": [
+          1,
+          2
+        ],
+        "states": [
+          "pendiente",
+          "confirmado",
+          "descartado"
+        ]
+      }
+    },
+    {
+      "id": "fixed-queue",
+      "type": "workflow",
+      "label": "Cola fija de cuadrantes",
+      "properties": {
+        "size": 10,
+        "composition": "5 cuadrantes de prueba y 5 cuadrantes de práctica elegidos por el equipo",
+        "random_or_unbounded": false
+      }
+    },
+    {
+      "id": "report",
+      "type": "data_entity",
+      "label": "Reporte",
+      "properties": {
+        "table": "reportes",
+        "fields": [
+          "cuadrante_id",
+          "ra",
+          "dec",
+          "tipo"
+        ],
+        "types": [
+          "movimiento",
+          "brillo",
+          "limpio"
+        ]
+      }
+    },
+    {
+      "id": "validation",
+      "type": "data_entity",
+      "label": "Validación",
+      "properties": {
+        "table": "validaciones",
+        "fields": [
+          "reporte_id",
+          "coincide",
+          "es_simulado"
+        ]
+      }
+    },
+    {
+      "id": "confirmed-reports-view",
+      "type": "database_view",
+      "label": "Vista de reportes confirmados",
+      "properties": {
+        "name": "vw_reportes_confirmados",
+        "confirmation_rule": "Al menos 3 validaciones coincidentes para el mismo reporte_id."
+      }
+    },
+    {
+      "id": "cross-validation",
+      "type": "business_process",
+      "label": "Validación cruzada",
+      "properties": {
+        "required_matching_votes": 3,
+        "scope": "Un reporte, no el cuadrante ni una combinación de reportes.",
+        "demo_votes_must_be_labeled_simulated": true
+      }
+    },
+    {
+      "id": "cosmic-dna",
+      "type": "feature",
+      "label": "ADN Cósmico",
+      "properties": {
+        "representation": "Firma espectral visual en forma de código de barras de color.",
+        "calculation": "Precalculado para los objetos de prueba; no se extraen 102 bandas en vivo.",
+        "not_a_direct_chemical_identification": true
+      }
+    },
+    {
+      "id": "blink",
+      "type": "feature",
+      "label": "Blink entre épocas",
+      "properties": {
+        "epochs": [
+          "Época A",
+          "Época B"
+        ],
+        "same_quadrant_center_and_scale": true
+      }
+    },
+    {
+      "id": "image-difference",
+      "type": "feature",
+      "label": "Resta de imágenes",
+      "properties": {
+        "formula": "|Matriz_B - Matriz_A|",
+        "requires_threshold": true,
+        "candidate_explanation": true
+      }
+    },
+    {
+      "id": "infrared-cutouts",
+      "type": "data_product",
+      "label": "Cutouts infrarrojos precalculados",
+      "properties": {
+        "source": "IRSA",
+        "release": "DR1 / QR3",
+        "format": "FITS multi-extensión"
+      }
+    },
+    {
+      "id": "synthetic-fallback",
+      "type": "data_product",
+      "label": "Fallback sintético de demo",
+      "properties": {
+        "purpose": "Mantener operativa la demo cuando IRSA no responde.",
+        "must_be_disclosed": true
+      }
+    },
+    {
+      "id": "frontend",
+      "type": "software_component",
+      "label": "Frontend",
+      "properties": {
+        "stack": [
+          "Vite",
+          "React",
+          "Tailwind",
+          "Aladin Lite (CDN)"
+        ],
+        "deployment": "Vercel"
+      }
+    },
+    {
+      "id": "backend",
+      "type": "software_component",
+      "label": "Backend",
+      "properties": {
+        "stack": [
+          "FastAPI",
+          "Python",
+          "Astropy",
+          "NumPy",
+          "SciPy"
+        ],
+        "deployment": "Render mediante Dockerfile"
+      }
+    },
+    {
+      "id": "production-database",
+      "type": "database",
+      "label": "Supabase PostgreSQL",
+      "properties": {
+        "environment": "Producción",
+        "tables": [
+          "cuadrantes",
+          "reportes",
+          "validaciones"
+        ]
+      }
+    },
+    {
+      "id": "local-database",
+      "type": "database",
+      "label": "db-local",
+      "properties": {
+        "engine": "PostgreSQL",
+        "environment": "Pruebas locales en Docker",
+        "replaces_production_database": false
+      }
+    },
+    {
+      "id": "docker-environment",
+      "type": "infrastructure",
+      "label": "Docker y Docker Compose",
+      "properties": {
+        "services": [
+          "frontend",
+          "backend",
+          "db-local"
+        ],
+        "purpose": "Desarrollo, pruebas y despliegue reproducibles del backend."
+      }
+    },
+    {
+      "id": "free-search",
+      "type": "feature",
+      "label": "Búsqueda libre por coordenadas",
+      "properties": {
+        "coordinate_system": "RA/Dec J2000",
+        "live_generic_tap_queries": false,
+        "fallback": "Sintético"
+      }
+    },
+    {
+      "id": "test-object-barnard",
+      "type": "astronomical_object",
+      "label": "Barnard's Star",
+      "properties": {
+        "test_type": "movimiento",
+        "ra_j2000_deg": 269.452075,
+        "dec_j2000_deg": 4.693365,
+        "proper_motion_arcsec_per_year": 10.39
+      }
+    },
+    {
+      "id": "test-object-wise0855",
+      "type": "astronomical_object",
+      "label": "WISE 0855-0714",
+      "properties": {
+        "test_type": "movimiento",
+        "ra_j2000_deg": 133.795133,
+        "dec_j2000_deg": -7.245146,
+        "proper_motion_arcsec_per_year": 8.15
+      }
+    },
+    {
+      "id": "test-object-epsilon-indi-b",
+      "type": "astronomical_object",
+      "label": "Epsilon Indi B",
+      "properties": {
+        "test_type": "movimiento",
+        "ra_j2000_deg": 331.044147,
+        "dec_j2000_deg": -56.782844,
+        "proper_motion_arcsec_per_year": 4.68
+      }
+    },
+    {
+      "id": "test-object-rw-aurigae",
+      "type": "astronomical_object",
+      "label": "RW Aurigae",
+      "properties": {
+        "test_type": "brillo",
+        "classification": "T Tauri",
+        "expected_behavior": "Cambio de brillo; no movimiento."
+      }
+    },
+    {
+      "id": "test-object-r-draconis",
+      "type": "astronomical_object",
+      "label": "R Draconis",
+      "properties": {
+        "test_type": "brillo",
+        "classification": "Mira",
+        "expected_behavior": "Cambio de brillo; no movimiento."
+      }
+    },
+    {
+      "id": "practice-objects",
+      "type": "dataset",
+      "label": "Cuadrantes de práctica",
+      "properties": {
+        "count": 5,
+        "coordinates": "Pendientes de selección por el equipo; no deben inventarse."
+      }
+    },
+    {
+      "id": "role-03",
+      "type": "team_role",
+      "label": "Rol 03 — Base de datos, validación y ADN Cósmico",
+      "properties": {
+        "responsibilities": [
+          "esquema y persistencia",
+          "validación cruzada",
+          "ADN Cósmico precalculado"
+        ]
+      }
+    },
+    {
+      "id": "role-04",
+      "type": "team_role",
+      "label": "Rol 04 — Entrega en inglés y demo",
+      "properties": {
+        "responsibilities": [
+          "página de entrega",
+          "demo",
+          "links públicos",
+          "declaración de uso de SI"
+        ]
+      }
+    },
+    {
+      "id": "project-delivery",
+      "type": "deliverable",
+      "label": "Entrega del proyecto",
+      "properties": {
+        "language": "Inglés",
+        "public_links_required": true,
+        "demo_limit": "Video de hasta 30 segundos o presentación de hasta 7 diapositivas."
+      }
+    },
+    {
+      "id": "submission-deadline",
+      "type": "milestone",
+      "label": "Cierre de entrega",
+      "properties": {
+        "date": "2026-11-15",
+        "time": "23:59 hora local del Local Event",
+        "action": "Submit for Judging"
+      }
+    },
+    {
+      "id": "nasa-data",
+      "type": "data_source",
+      "label": "Fuentes de datos NASA y astronómicas",
+      "properties": {
+        "listed_sources": [
+          "IRSA SPHEREx DR1 / QR3",
+          "SPHEREx Tutorial Notebooks",
+          "WiseView",
+          "Gaia DR3"
+        ]
+      }
+    },
+    {
+      "id": "ai-use-policy",
+      "type": "policy",
+      "label": "Reglas de uso de inteligencia artificial",
+      "properties": {
+        "human_ownership_of_idea": true,
+        "substantial_change_requires_human_agreement": true,
+        "assisted_code_and_data_must_be_disclosed": true,
+        "credentials_must_not_be_shared_or_committed": true
+      }
+    },
+    {
+      "id": "project",
+      "type": "concept",
+      "label": "Plataforma web de ciencia ciudadana"
+    },
+    {
+      "id": "challenge",
+      "type": "challenge",
+      "label": "Planet X and SPHEREx"
+    },
+    {
+      "id": "movimiento",
+      "type": "phenomenon",
+      "label": "Movimiento aparente del objeto"
+    },
+    {
+      "id": "brillo",
+      "type": "phenomenon",
+      "label": "Cambio de brillo del objeto"
+    },
+    {
+      "id": "vercel",
+      "type": "deployment_platform",
+      "label": "Vercel",
+      "properties": {
+        "purpose": "Despliegue estático del frontend."
+      }
+    },
+    {
+      "id": "j2000-coordinates",
+      "type": "coordinate_system",
+      "label": "Coordenadas J2000",
+      "properties": {
+        "fields": [
+          "RA",
+          "Dec"
+        ]
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r01",
+      "source": "spectrahive",
+      "predicate": "es",
+      "target": "project",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "1"
+        }
+      ]
+    },
+    {
+      "id": "r02",
+      "source": "spectrahive",
+      "predicate": "responde_al_reto",
+      "target": "challenge",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r03",
+      "source": "citizen-scientist",
+      "predicate": "usa",
+      "target": "spectrahive",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "1"
+        }
+      ]
+    },
+    {
+      "id": "r04",
+      "source": "spectrahive",
+      "predicate": "implementa",
+      "target": "core-workflow",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "1"
+        }
+      ]
+    },
+    {
+      "id": "r05",
+      "source": "core-workflow",
+      "predicate": "comienza_con",
+      "target": "free-search",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "1, RF-01, RF-10"
+        }
+      ]
+    },
+    {
+      "id": "r06",
+      "source": "core-workflow",
+      "predicate": "incluye",
+      "target": "blink",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "1, RF-06"
+        }
+      ]
+    },
+    {
+      "id": "r07",
+      "source": "blink",
+      "predicate": "alimenta",
+      "target": "image-difference",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-08"
+        }
+      ]
+    },
+    {
+      "id": "r08",
+      "source": "image-difference",
+      "predicate": "identifica",
+      "target": "report",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-09, RF-10"
+        }
+      ]
+    },
+    {
+      "id": "r09",
+      "source": "report",
+      "predicate": "pertenece_a",
+      "target": "quadrant",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "4, RF-10"
+        }
+      ]
+    },
+    {
+      "id": "r10",
+      "source": "report",
+      "predicate": "recibe",
+      "target": "validation",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "4, RF-12"
+        }
+      ]
+    },
+    {
+      "id": "r11",
+      "source": "validation",
+      "predicate": "participa_en",
+      "target": "cross-validation",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-12, RF-13"
+        }
+      ]
+    },
+    {
+      "id": "r12",
+      "source": "cross-validation",
+      "predicate": "produce",
+      "target": "confirmed-reports-view",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "4, RF-12"
+        }
+      ]
+    },
+    {
+      "id": "r13",
+      "source": "cross-validation",
+      "predicate": "puede_usar_votos_simulados_en",
+      "target": "project-delivery",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-13"
+        },
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Reglas de IA"
+        }
+      ]
+    },
+    {
+      "id": "r14",
+      "source": "spectrahive",
+      "predicate": "presenta",
+      "target": "cosmic-dna",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-14, RF-15"
+        }
+      ]
+    },
+    {
+      "id": "r15",
+      "source": "cosmic-dna",
+      "predicate": "se_calcula_para",
+      "target": "test-object-barnard",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-14, §5"
+        },
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r16",
+      "source": "cosmic-dna",
+      "predicate": "se_calcula_para",
+      "target": "test-object-wise0855",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-14, §5"
+        },
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r17",
+      "source": "cosmic-dna",
+      "predicate": "se_calcula_para",
+      "target": "test-object-epsilon-indi-b",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-14, §5"
+        }
+      ]
+    },
+    {
+      "id": "r18",
+      "source": "cosmic-dna",
+      "predicate": "se_calcula_para",
+      "target": "test-object-rw-aurigae",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-14, §5"
+        }
+      ]
+    },
+    {
+      "id": "r19",
+      "source": "cosmic-dna",
+      "predicate": "se_calcula_para",
+      "target": "test-object-r-draconis",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-14, §5"
+        }
+      ]
+    },
+    {
+      "id": "r20",
+      "source": "quadrant",
+      "predicate": "incluido_en",
+      "target": "fixed-queue",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05"
+        }
+      ]
+    },
+    {
+      "id": "r21",
+      "source": "fixed-queue",
+      "predicate": "incluye",
+      "target": "test-object-barnard",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05, §5"
+        }
+      ]
+    },
+    {
+      "id": "r22",
+      "source": "fixed-queue",
+      "predicate": "incluye",
+      "target": "test-object-wise0855",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05, §5"
+        }
+      ]
+    },
+    {
+      "id": "r23",
+      "source": "fixed-queue",
+      "predicate": "incluye",
+      "target": "test-object-epsilon-indi-b",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05, §5"
+        }
+      ]
+    },
+    {
+      "id": "r24",
+      "source": "fixed-queue",
+      "predicate": "incluye",
+      "target": "test-object-rw-aurigae",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05, §5"
+        }
+      ]
+    },
+    {
+      "id": "r25",
+      "source": "fixed-queue",
+      "predicate": "incluye",
+      "target": "test-object-r-draconis",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05, §5"
+        }
+      ]
+    },
+    {
+      "id": "r26",
+      "source": "fixed-queue",
+      "predicate": "incluye",
+      "target": "practice-objects",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-05, RF-04"
+        },
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r27",
+      "source": "test-object-barnard",
+      "predicate": "pertenece_al_tipo",
+      "target": "movimiento",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-02, §5"
+        }
+      ]
+    },
+    {
+      "id": "r28",
+      "source": "test-object-wise0855",
+      "predicate": "pertenece_al_tipo",
+      "target": "movimiento",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-02, §5"
+        }
+      ]
+    },
+    {
+      "id": "r29",
+      "source": "test-object-epsilon-indi-b",
+      "predicate": "pertenece_al_tipo",
+      "target": "movimiento",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-02, §5"
+        }
+      ]
+    },
+    {
+      "id": "r30",
+      "source": "test-object-rw-aurigae",
+      "predicate": "pertenece_al_tipo",
+      "target": "brillo",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-02, RN-03, §5"
+        }
+      ]
+    },
+    {
+      "id": "r31",
+      "source": "test-object-r-draconis",
+      "predicate": "pertenece_al_tipo",
+      "target": "brillo",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-02, RN-03, §5"
+        }
+      ]
+    },
+    {
+      "id": "r32",
+      "source": "backend",
+      "predicate": "sirve",
+      "target": "infrared-cutouts",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-16, §6"
+        }
+      ]
+    },
+    {
+      "id": "r33",
+      "source": "infrared-cutouts",
+      "predicate": "usa_si_irsa_no_responde",
+      "target": "synthetic-fallback",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-16"
+        }
+      ]
+    },
+    {
+      "id": "r34",
+      "source": "frontend",
+      "predicate": "consume",
+      "target": "backend",
+      "derivation": "inferred",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "§6"
+        }
+      ]
+    },
+    {
+      "id": "r35",
+      "source": "backend",
+      "predicate": "persiste_datos_en",
+      "target": "production-database",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-13, §4, §6"
+        },
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Tu responsabilidad"
+        }
+      ]
+    },
+    {
+      "id": "r36",
+      "source": "local-database",
+      "predicate": "se_ejecuta_en",
+      "target": "docker-environment",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-17, RN-13"
+        }
+      ]
+    },
+    {
+      "id": "r37",
+      "source": "backend",
+      "predicate": "se_despliega_con",
+      "target": "docker-environment",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-17, RN-13"
+        },
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Orden de ejecución"
+        }
+      ]
+    },
+    {
+      "id": "r38",
+      "source": "frontend",
+      "predicate": "se_despliega_en",
+      "target": "vercel",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-13"
+        },
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r39",
+      "source": "role-03",
+      "predicate": "entrega_datos_de",
+      "target": "cosmic-dna",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Contratos con los otros roles"
+        }
+      ]
+    },
+    {
+      "id": "r40",
+      "source": "role-03",
+      "predicate": "implementa",
+      "target": "cross-validation",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Tu responsabilidad, Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r41",
+      "source": "role-04",
+      "predicate": "prepara",
+      "target": "project-delivery",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Tu responsabilidad, Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r42",
+      "source": "project-delivery",
+      "predicate": "tiene_fecha_limite",
+      "target": "submission-deadline",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r43",
+      "source": "project-delivery",
+      "predicate": "declara",
+      "target": "nasa-data",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Entregables"
+        }
+      ]
+    },
+    {
+      "id": "r44",
+      "source": "spectrahive",
+      "predicate": "debe_cumplir",
+      "target": "ai-use-policy",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RN-12, RN-14"
+        },
+        {
+          "source_id": "rol-db-validacion-adn",
+          "section": "Reglas de IA"
+        },
+        {
+          "source_id": "rol-entrega-demo",
+          "section": "Reglas de IA"
+        }
+      ]
+    },
+    {
+      "id": "r45",
+      "source": "free-search",
+      "predicate": "acepta",
+      "target": "j2000-coordinates",
+      "derivation": "explicit",
+      "evidence": [
+        {
+          "source_id": "contexto-general",
+          "section": "RF-01, RN-04"
+        }
+      ]
+    }
+  ],
+  "inference_notes": [
+    "Los tipos 'movimiento' y 'brillo' se modelan como valores de clasificación, no como nodos independientes; las relaciones que los nombran conservan ese valor del dominio.",
+    "Las relaciones para cada objeto de prueba con el ADN Cósmico se infieren de la instrucción de precalcularlo para los cinco objetos de prueba.",
+    "La fuente única de verdad establece que la confirmación es por reporte_id con tres votos coincidentes; cualquier mención abreviada a coordenada en el documento del rol 03 se interpreta de acuerdo con esa regla."
+  ]
+}
