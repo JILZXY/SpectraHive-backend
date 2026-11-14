@@ -57,21 +57,11 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(application)
 
-    # Contratos raiz (§6 de 00-contexto-general.md) visibles en OpenAPI y alias /api/v1
-    for prefix in ("", "/api/v1"):
-        include_schema = prefix == ""
-        application.include_router(
-            cutouts.router, prefix=prefix, include_in_schema=include_schema
-        )
-        application.include_router(
-            diffs.router, prefix=prefix, include_in_schema=include_schema
-        )
-        application.include_router(
-            reports.router, prefix=prefix, include_in_schema=include_schema
-        )
-        application.include_router(
-            quadrants.router, prefix=prefix, include_in_schema=include_schema
-        )
+    # Contratos raiz unicos (§6 de 00-contexto-general.md)
+    application.include_router(cutouts.router)
+    application.include_router(diffs.router)
+    application.include_router(reports.router)
+    application.include_router(quadrants.router)
 
     @application.get(
         "/health",

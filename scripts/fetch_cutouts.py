@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
+
+from astropy.io import fits
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -24,6 +27,29 @@ def _remove_stale_synthetic_files(target_dir: Path, slug: str) -> None:
             old_path.unlink()
 
 
+def _find_valid_irsa_mefs(target_dir: Path, slug: str) -> list[Path]:
+    candidates = sorted(
+        target_dir.glob(f"{slug}_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*.fits")
+    )
+    valid: list[Path] = []
+    for path in candidates:
+        try:
+            with fits.open(path, memmap=False) as hdul:
+                if "IMAGE" not in hdul or hdul["IMAGE"].data is None:
+                    continue
+                img = hdul["IMAGE"]
+                if tuple(img.data.shape) != (2040, 2040):
+                    continue
+                if bool(img.header.get("SYNTHETC", False)):
+                    continue
+                if str(img.header.get("SOURCE", "")).strip().upper() != "IRSA":
+                    continue
+                valid.append(path)
+        except Exception:
+            continue
+    return valid
+
+
 def fetch_or_build_cutouts(
     output_dir: Path | None = None,
     offline: bool = False,
@@ -36,6 +62,19 @@ def fetch_or_build_cutouts(
 
     for spec in TEST_OBJECTS_CATALOG:
         if not offline:
+            existing = _find_valid_irsa_mefs(target_dir, spec.slug)
+            if len(existing) >= 2:
+                _remove_stale_synthetic_files(target_dir, spec.slug)
+                print(
+                    f"\n[{spec.nombre}] MEFs IRSA reales ya presentes en {target_dir.name}: "
+                    f"{', '.join(p.name for p in existing[:2])}"
+                )
+                for path in existing[:2]:
+                    buf = io.StringIO()
+                    fits.info(path, output=buf)
+                    print(buf.getvalue().rstrip())
+                generated.extend(existing[:2])
+                continue
             try:
                 obs_a, obs_b = client.select_two_epochs(spec.ra, spec.dec)
                 dt_days = obs_b.t_min - obs_a.t_min
