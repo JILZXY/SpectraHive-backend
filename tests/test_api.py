@@ -72,6 +72,18 @@ def test_api_endpoints_end_to_end(tmp_path: Path) -> None:
             )
             assert bad_fov.status_code == 400
 
+            outside = client.get(
+                "/cutout",
+                params={"ra": "10", "dec": "10", "fov": 2},
+            )
+            assert outside.status_code == 404
+
+            outside_diff = client.post(
+                "/diff",
+                json={"cuadrante_id": "libre", "ra": 10, "dec": 10, "fov": 2},
+            )
+            assert outside_diff.status_code == 404
+
             # 2. POST /diff
             diff = client.post(
                 "/diff",

@@ -1,5 +1,5 @@
 # Assisted by Antigravity (SI) — reviewed by Jeshua
-"""Generador sintetico determinista para los 5 objetos de prueba y busqueda libre (RF-16)."""
+"""Generador sintetico determinista para los 5 objetos de prueba (RF-16)."""
 
 from __future__ import annotations
 
@@ -95,12 +95,6 @@ def generate_synthetic_field(
             # RW Aurigae y R Draconis: posicion fija, cambio de brillo entre epocas (RN-03)
             flux = 175.0 if is_epoch_b else 42.0
             _add_gaussian_star(canvas, center, center, flux=flux, sigma=1.9)
-    else:
-        # Busqueda libre: candidato sintetico de movimiento lento (tipo Planet X)
-        shift = 1.6 * zoom_factor
-        tx = center + (shift * 0.5 if is_epoch_b else -shift * 0.5)
-        ty = center + (0.6 * zoom_factor if is_epoch_b else -0.6 * zoom_factor)
-        _add_gaussian_star(canvas, tx, ty, flux=130.0, sigma=1.7)
 
     return canvas, matched
 

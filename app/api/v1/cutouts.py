@@ -47,7 +47,11 @@ class CutoutResponse(BaseModel):
         400: {
             "model": ErrorResponse,
             "description": "Coordenadas fuera de rango (RA 0-360°, Dec -90°..+90°) o FOV distinto de 1 o 2",
-        }
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Coordenadas fuera de los cuadrantes registrados (RF-01, RN-10)",
+        },
     },
 )
 def get_cutout(

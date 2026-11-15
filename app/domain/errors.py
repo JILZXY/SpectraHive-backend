@@ -36,3 +36,7 @@ class InvalidValidationOperationError(ValidationError):
 
 class ResourceNotFoundError(DomainError):
     """Entidad o recurso solicitado no existe."""
+
+
+class OutsideRegisteredQuadrantError(ResourceNotFoundError):
+    """Coordenadas fuera de los cuadrantes registrados (RF-01, RN-10)."""

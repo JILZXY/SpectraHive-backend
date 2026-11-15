@@ -21,6 +21,7 @@ from app.config import DatabaseConfigError, get_database_url
 from app.domain.entities import TEST_OBJECTS_CATALOG, Quadrant, Report, Validation
 from app.domain.errors import (
     InvalidValidationOperationError,
+    OutsideRegisteredQuadrantError,
     ReportTypeMismatchError,
     ResourceNotFoundError,
 )
@@ -213,6 +214,12 @@ def test_compute_diff_barnard_and_rw_aurigae() -> None:
     r_draconis_diff = diff_uc.execute(cuadrante_id="R Draconis")
     assert len(r_draconis_diff.candidatos) == 1
     assert r_draconis_diff.candidatos[0].tipo == "brillo"
+
+
+def test_get_cutout_rejects_coordinates_outside_registered_quadrants() -> None:
+    uc = GetCutout(SyntheticCutoutProvider())
+    with pytest.raises(OutsideRegisteredQuadrantError):
+        uc.execute(ra=10.0, dec=10.0, fov=2, epoca="A")
 
 
 def test_get_cutout_reads_irsa_fits_and_falls_back(tmp_path: Path) -> None:

@@ -25,15 +25,21 @@ limpio o reporta una anomalía, y la anomalía se confirma por validación cruza
 
 ### Búsqueda y navegación
 
-- **RF-01 — Buscar por coordenadas.** El usuario introduce RA y Dec (sexagesimal
-  o decimal) y el sistema centra el visor en esa posición. RA válida 0–360°,
-  Dec válida −90°…+90°. Coordenadas fuera de rango se rechazan con mensaje claro.
+- **RF-01 — Abrir un cuadrante registrado.** El usuario abre uno de los cuadrantes
+  registrados (atajos de los 5 objetos, cola de cuadrantes o URL) y el sistema
+  centra el visor en él. Las coordenadas de la URL (RA 0–360°, Dec −90°…+90°,
+  sexagesimal o decimal) deben coincidir con un cuadrante registrado; si están
+  fuera de rango o no coinciden, se rechazan con mensaje claro y se abre el
+  cuadrante por defecto. No hay búsqueda libre por coordenadas.
 - **RF-02 — FOV.** El usuario elige FOV 1 o 2. Solo esos dos valores. Nada de
-  slider continuo ni otros FOV.
+  slider continuo ni otros FOV. Cada objeto se revisa primero con FOV 2 y después
+  con FOV 1. El visor no permite zoom fuera de ese rango ni alejarse del
+  cuadrante activo (se recentra); fuera del cuadrante no se inspecciona nada.
 - **RF-03 — URL dinámica.** Abrir `/?ra=<RA>&dec=<Dec>&fov=<1|2>` centra el visor
   en esa posición con ese FOV, sin pasos extra. Ejemplo:
   `/?ra=08h55m&dec=-7d14m&fov=2` (WISE 0855). La URL se actualiza al cambiar
-  de cuadrante, para poder compartirla.
+  de cuadrante, para poder compartirla. Si la URL no corresponde a un cuadrante
+  registrado se rechaza (RF-01).
 - **RF-04 — Atajos de prueba.** La UI ofrece los 5 objetos de prueba como atajos
   (ver §5). Un clic centra el visor en ese objeto con FOV 2.
 - **RF-05 — Cola fija de cuadrantes.** El sistema recorre una cola fija de
@@ -131,8 +137,13 @@ limpio o reporta una anomalía, y la anomalía se confirma por validación cruza
   alineados, o desplazamiento entero de píxeles. Si un par no está alineado,
   no se inventa una alineación: se marca y se usa otro par.
 - **RN-10 — Sin datos en vivo para cualquier coordenada.** No hay consultas
-  TAP genéricas en vivo. Solo cutouts precalculados de los cuadrantes de la
-  cola + 1 búsqueda libre con fallback sintético.
+  TAP genéricas en vivo ni búsqueda libre: solo cutouts precalculados de los
+  cuadrantes de la cola, y la UI no ofrece coordenadas fuera de ellos. El
+  backend conserva el fallback sintético (RF-16) solo como respaldo si IRSA no
+  responde. Única excepción: overlay opcional del catálogo SIMBAD (CDS) sobre el
+  fondo del visor Aladin del cuadrante activo, solo lectura, desactivado por
+  defecto y rotulado como consulta en vivo que no es dato SPHEREx. No se
+  descargan datasets ni se usa para detectar candidatos.
 - **RN-11 — Lo que no se hace (fuera de alcance).** Sin HiPS propio, sin red
   social, perfiles ni leaderboard, sin más de 2 épocas, sin más de un falso
   color, sin FOV distinto de 1 y 2, sin extracción de 102 bandas en vivo.

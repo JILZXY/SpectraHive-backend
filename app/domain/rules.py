@@ -5,12 +5,28 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from app.domain.entities import Quadrant, Validation
-from app.domain.errors import InvalidReportTypeError, ReportTypeMismatchError
+from app.domain.entities import Quadrant, TestObjectSpec, Validation, match_test_object
+from app.domain.errors import (
+    InvalidReportTypeError,
+    OutsideRegisteredQuadrantError,
+    ReportTypeMismatchError,
+)
 
 ALLOWED_REPORT_TYPES = ("movimiento", "brillo", "limpio")
 ALLOWED_QUADRANT_STATES = ("pendiente", "confirmado", "descartado")
 CONFIRMATION_VOTES_REQUIRED = 3
+QUADRANT_MATCH_TOLERANCE_DEG = 0.5
+
+
+def ensure_registered_quadrant(ra: float, dec: float) -> TestObjectSpec:
+    """Rechaza coordenadas fuera de los cuadrantes registrados (RF-01, RN-10)."""
+    matched = match_test_object(ra, dec, tolerance_deg=QUADRANT_MATCH_TOLERANCE_DEG)
+    if matched is None:
+        raise OutsideRegisteredQuadrantError(
+            f"Coordenadas RA={ra:.4f}, Dec={dec:+.4f} fuera de los cuadrantes registrados. "
+            "Solo se sirven los cuadrantes de la cola fija (RF-05)."
+        )
+    return matched
 
 
 def validate_report_type(cuadrante: Quadrant, tipo: str) -> None:

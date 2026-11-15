@@ -33,6 +33,7 @@ from app.domain.ports import (
 from app.domain.rules import (
     confirm_report,
     determine_quadrant_state_after_validation,
+    ensure_registered_quadrant,
     ensure_simulated_vote_labelled,
     validate_report_type,
 )
@@ -60,6 +61,7 @@ class GetCutout:
         ra_dec = RaDec.parse(ra, dec)
         fov_vo = Fov(fov)
         epoch_vo = Epoch(epoca)
+        ensure_registered_quadrant(ra_dec.ra, ra_dec.dec)
 
         cutout = self._cutout_provider.get_cutout(ra_dec, fov_vo, epoch_vo)
         return CutoutResult(
@@ -102,6 +104,7 @@ class ComputeDiff:
         if ra is not None and dec is not None:
             ra_dec = RaDec.parse(ra, dec)
             fov_vo = Fov(fov)
+            ensure_registered_quadrant(ra_dec.ra, ra_dec.dec)
         else:
             quadrant: Quadrant | None = None
             if self._quadrant_repo is not None:
