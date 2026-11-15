@@ -58,7 +58,7 @@ curl -s http://127.0.0.1:8000/health
 | **Método** | `GET` |
 | **Ruta** | `/cutout` |
 | **Tag** | `cutouts` |
-| **Parámetros (query)** | `ra` *(requerido, string)*: RA J2000 decimal `0–360` o sexagesimal (`"269.452075"` / `"17h57m"`).<br>`dec` *(requerido, string)*: Dec J2000 decimal `-90..+90` o sexagesimal (`"4.693365"` / `"+4d41m"`).<br>`fov` *(opcional, int, default `2`)*: Solo `1` o `2` (`RF-02`).<br>`epoca` *(opcional, string, default `"A"`)*: `"A"`/`"DR1"` o `"B"`/`"QR3"` (`RF-06`).<br>`format` *(opcional, string, default `"json"`)*: `"json"` o `"png"`. |
+| **Parámetros (query)** | `ra` *(requerido, string)*: RA J2000 decimal `0–360` o sexagesimal (`"269.452075"` / `"17h57m"`).<br>`dec` *(requerido, string)*: Dec J2000 decimal `-90..+90` o sexagesimal (`"4.693365"` / `"+4d41m"`).<br>`fov` *(opcional, int, default `2`)*: Solo `1` o `2` (`RF-02`).<br>`epoca` *(opcional, string, default `"A"`)*: `"A"`/`"DR1"` o `"B"`/`"QR3"` (`RF-06`). Resuelve cronológicamente el primer o segundo MEF fechado `{slug}_{YYYY-MM-DD}.fits` descargado por SIA (`t_min` separado ~6 meses, mismo detector cuando es posible).<br>`format` *(opcional, string, default `"json"`)*: `"json"` o `"png"`. |
 | **Respuesta exitosa** | `200 OK` — `CutoutResponse` JSON (`{ra, dec, fov, epoca, fuente, objeto, imagen}`) o binario `image/png` si `format=png`. |
 | **Códigos de error** | `400 Bad Request` (`ErrorResponse`): coordenadas fuera de rango (`RA` no en `[0, 360]` o `Dec` no en `[-90, 90]`), formato inválido o `fov` distinto de `1` o `2`.<br>`422 Unprocessable Content` (`HTTPValidationError`): falta parámetro requerido `ra`/`dec` o `fov` no entero. |
 
@@ -117,12 +117,12 @@ curl -s -X POST "http://127.0.0.1:8000/diff" \
 **Ejemplo de response (`200 OK`):**
 ```json
 {
-  "umbral": 0.4125,
+  "umbral": 14.1225,
   "candidatos": [
     {
       "ra": 269.4512,
       "dec": 4.6941,
-      "valor": 1.0,
+      "valor": 242.5,
       "motivo": "Desplazamiento dipolar de 8.6 px entre Epoca A y B con variacion delta=142.30 sobre el umbral (movimiento propio rapido)",
       "tipo": "movimiento"
     }

@@ -59,12 +59,12 @@ class DiffResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "umbral": 0.4125,
+                "umbral": 14.1225,
                 "candidatos": [
                     {
                         "ra": 269.4512,
                         "dec": 4.6941,
-                        "valor": 1.0,
+                        "valor": 242.5,
                         "motivo": "Desplazamiento dipolar de 8.6 px entre Epoca A y B con variacion delta=142.30 sobre el umbral (movimiento propio rapido)",
                         "tipo": "movimiento",
                     }

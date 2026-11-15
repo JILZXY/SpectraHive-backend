@@ -812,13 +812,13 @@
               "motivo": "Desplazamiento dipolar de 8.6 px entre Epoca A y B con variacion delta=142.30 sobre el umbral (movimiento propio rapido)",
               "ra": 269.4512,
               "tipo": "movimiento",
-              "valor": 1.0
+              "valor": 242.5
             }
           ],
           "cuadrante_id": "Barnard's Star",
           "fuente": "irsa",
           "imagen": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
-          "umbral": 0.4125
+          "umbral": 14.1225
         }
       },
       "ErrorResponse": {

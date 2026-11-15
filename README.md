@@ -9,8 +9,8 @@ Backend API for **SpectraHive (SPHEREx Tracker)**, a citizen science platform bu
 
 ## Core Workflow & Capabilities
 
-1. **Coordinate Search & Dynamic URLs (`GET /cutout`):** Supports decimal and sexagesimal J2000 coordinates (`RA` in `[0, 360]`, `Dec` in `[-90, +90]`) and fixed field-of-view options (`FOV = 1` or `2`). Serves precomputed IRSA FITS cutouts when available and falls back deterministically to synthetic demo imagery (`fuente: "irsa" | "sintetico"`).
-2. **Epoch Blink & Absolute Difference (`POST /diff`):** Aligns Epoch A (`DR1`) and Epoch B (`QR3`) via bounded integer pixel shifts (without arbitrary general reprojection), computes `|Matrix_B - Matrix_A|`, normalizes with 1–99 percentiles into a single infrared false-color palette, applies a robust median/MAD threshold on the raw difference, and classifies candidates (`movimiento`, `lento`, or `brillo`) with human-readable explanations.
+1. **Coordinate Search & Dynamic URLs (`GET /cutout`):** Supports decimal and sexagesimal J2000 coordinates (`RA` in `[0, 360]`, `Dec` in `[-90, +90]`) and fixed field-of-view options (`FOV = 1` or `2`). Serves WCS-centered crops from precomputed IRSA SPHEREx `2040x2040` MEFs (fetched via `astroquery` `Irsa.query_sia` as dated `{slug}_{YYYY-MM-DD}.fits` pairs separated by ~6 months in `t_min` on the same detector when possible) and falls back deterministically to synthetic demo imagery (`fuente: "irsa" | "sintetico"`).
+2. **Epoch Blink & Absolute Difference (`POST /diff`):** Aligns Epoch A (earliest MEF date / `DR1`) and Epoch B (~+6 month MEF date / `QR3`) via bounded integer pixel shifts (without arbitrary general reprojection), computes `|Matrix_B - Matrix_A|`, normalizes with 1–99 percentiles into a single infrared false-color palette, applies a robust median/MAD threshold on the raw difference, and classifies candidates (`movimiento`, `lento`, or `brillo`) with human-readable explanations.
 3. **Anomaly Reporting & Cross-Validation (`POST /report`, `POST /report/{reporte_id}/validate`):** Enforces domain rules separating moving objects from variable-brightness objects, allows marking clean quadrants (`tipo = "limpio"`), and confirms reports atomically in PostgreSQL/Supabase once `vw_reportes_confirmados` reaches `>= 3` matching votes (`coincide = true`). Simulated demo votes are always tagged (`es_simulado = true`, `etiqueta = "simulado"`).
 4. **Fixed Quadrant Queue & Precomputed Cosmic DNA (`GET /quadrants`, `GET /dna/{objeto}`):** Exposes the ordered queue of quadrants and precomputed multi-band infrared signatures formatted as visual barcodes for side-by-side visual comparison (not direct chemical identification without calibration).
 
@@ -30,16 +30,19 @@ spectraHive/
 │   ├── core/             # Logging & domain-to-HTTP exception mapping
 │   ├── config.py         # Environment-driven configuration (fails fast if DATABASE_URL is missing)
 │   └── main.py           # FastAPI application entrypoint
-├── scripts/              # Offline data prep: build_spectra.py & fetch_cutouts.py
+├── scripts/              # Offline data prep: build_spectra.py & fetch_cutouts.py (IRSA SIA)
 ├── data/
 │   ├── spectra/          # Precomputed Cosmic DNA JSON signatures
-│   └── cutouts/          # Local FITS cutouts (gitignored; generated/fetched via scripts)
+│   └── cutouts/          # Dated 2040x2040 FITS MEFs (gitignored; fetched via fetch_cutouts.py)
 ├── docs/
 │   ├── openapi.json      # Exported OpenAPI 3.1 schema
-│   └── API.md            # Endpoint reference with Barnard's Star examples
-├── tests/                # Domain, use-case, and API integration tests
+│   ├── API.md            # Endpoint reference with Barnard's Star examples
+│   └── TEST-REPORT.md    # Automated verification report (25/25 passing tests)
+├── tests/                # Domain, use-case, and API integration tests (excluded from Docker image)
+├── requirements.txt      # Production runtime dependencies
+├── requirements-dev.txt  # Development/testing dependencies (includes pytest)
 ├── supabase-schema.sql   # PostgreSQL / Supabase schema & seed data
-├── Dockerfile            # Container image for local dev, testing, and Render deployment
+├── Dockerfile            # Production runtime image for backend & Render deployment
 └── docker-compose.yml    # backend + db-local (postgres:17) services
 ```
 
@@ -66,6 +69,7 @@ Once the server is running on port `8000`:
 - **ReDoc:** `http://127.0.0.1:8000/redoc`
 - **OpenAPI JSON:** `http://127.0.0.1:8000/openapi.json` (static export at [`docs/openapi.json`](./docs/openapi.json))
 - **Markdown Reference:** [`docs/API.md`](./docs/API.md)
+- **Test Report:** [`docs/TEST-REPORT.md`](./docs/TEST-REPORT.md)
 
 | Method | Path | Description |
 |---|---|---|
@@ -110,15 +114,12 @@ Docker Compose starts `db-local` (`postgres:17`, auto-initialized with [`supabas
    ```
    The API will be available at `http://localhost:8000` (Swagger UI at `http://localhost:8000/docs`).
 
-3. **Run the full test suite inside Docker:**
-   ```bash
-   docker compose run --rm backend pytest -v
-   ```
-
-4. **Stop and clean up containers:**
+3. **Stop and clean up containers:**
    ```bash
    docker compose down
    ```
+
+> **Note:** The production `Dockerfile` excludes `pytest` and `tests/` to keep the runtime image lean. Run the automated test suite from the local virtual environment using `requirements-dev.txt` (Option B).
 
 ### Option B: Local Python Virtual Environment (`.venv`)
 
@@ -130,9 +131,11 @@ Docker Compose starts `db-local` (`postgres:17`, auto-initialized with [`supabas
    *(On Linux/macOS: `source .venv/bin/activate`)*
 
 2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+   - Runtime only: `pip install -r requirements.txt`
+   - Development & tests (`pytest`):
+     ```bash
+     pip install -r requirements-dev.txt
+     ```
 
 3. **Prepare offline precomputed data (`data/spectra/` and `data/cutouts/`):**
    ```bash
@@ -164,5 +167,5 @@ Docker Compose starts `db-local` (`postgres:17`, auto-initialized with [`supabas
 
 ## Data Sources & Stack Acknowledgments
 
-- **Astronomical Data & Tools:** NASA/IPAC IRSA SPHEREx (DR1 / QR3), Gaia DR3, Astropy, NumPy, SciPy, Pillow.
+- **Astronomical Data & Tools:** NASA/IPAC IRSA SPHEREx (DR1 / QR3 via SIAv2), Gaia DR3, Astropy, Astroquery, NumPy, SciPy, Pillow.
 - **Backend & Persistence:** FastAPI, Uvicorn, Pydantic, `psycopg` (v3) + `psycopg_pool`, PostgreSQL / Supabase, Docker.
